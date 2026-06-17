@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harwat Polda Sulteng - Pengeluaran 2026</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; }
+    .table-container { max-height: 65vh; overflow-x: auto; overflow-y: auto; }
+    .hidden { display: none !important; }
+    .chart-container { height: 320px; position: relative; }
+    th, td { white-space: nowrap; }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- Login -->
+  <div id="authModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+      <div class="flex justify-center mb-6">
+        <i class="fas fa-shield-alt text-5xl text-blue-600"></i>
+      </div>
+      <h2 class="text-2xl font-bold text-center mb-2">Login Harwat</h2>
+      <p class="text-center text-gray-500 mb-6">Polda Sulawesi Tengah</p>
+
+      <input type="text" id="loginUsername" value="admin" class="w-full border border-gray-300 rounded-lg px-4 py-3 mb-4">
+      <input type="password" id="loginPassword" value="harwat2026" class="w-full border border-gray-300 rounded-lg px-4 py-3 mb-6">
+      <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold">LOGIN</button>
+      <p class="text-center text-xs text-gray-500 mt-4">Demo: admin / harwat2026</p>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden">
+    <header class="bg-blue-900 text-white py-6 shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+          <i class="fas fa-shield-alt text-4xl"></i>
+          <div>
+            <h1 class="text-2xl font-bold">POLDA SULAWESI TENGAH</h1>
+            <p class="text-lg">Pengeluaran Operasional Harwat 2026 - Data Lengkap</p>
+          </div>
+        </div>
+        <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm">Logout</button>
+      </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto px-4 py-6">
+
+      <!-- Summary -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-2xl shadow p-5">
+          <p class="text-gray-500">Total Uang Masuk</p>
+          <p class="text-3xl font-bold text-green-600">Rp 37.250.000</p>
+        </div>
+        <div class="bg-white rounded-2xl shadow p-5">
+          <p class="text-gray-500">Total Pengeluaran</p>
+          <p class="text-3xl font-bold text-red-600">Rp 37.250.000</p>
+        </div>
+        <div class="bg-white rounded-2xl shadow p-5">
+          <p class="text-gray-500">Saldo Akhir</p>
+          <p class="text-3xl font-bold text-blue-600">Rp 0</p>
+        </div>
+      </div>
+
+      <!-- Grafik -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h2 class="text-xl font-semibold mb-4">Pengeluaran Bulanan</h2>
+          <div class="chart-container"><canvas id="monthlyChart"></canvas></div>
+        </div>
+        <div class="bg-white rounded-2xl shadow p-5">
+          <h2 class="text-xl font-semibold mb-4">Pengeluaran per Kategori</h2>
+          <div class="chart-container"><canvas id="categoryChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Tabel -->
+      <div class="bg-white rounded-2xl shadow overflow-hidden">
+        <div class="p-4 bg-gray-50 border-b flex flex-wrap gap-3 items-center">
+          <span class="font-semibold text-lg">📋 Semua Data Pengeluaran Harwat (FULL)</span>
+          <select id="monthFilter" class="border rounded-lg px-4 py-2">
+            <option value="">Semua Bulan</option>
+            <option value="04">April</option>
+            <option value="05">Mei</option>
+            <option value="06">Juni</option>
+          </select>
+          <input type="text" id="searchInput" placeholder="🔍 Cari keterangan atau tanggal..." 
+                 class="border rounded-lg px-4 py-2 flex-1 min-w-[200px]">
+        </div>
+
+        <div class="table-container">
+          <table class="w-full text-sm" id="dataTable">
+            <thead class="bg-gray-100 sticky top-0">
+              <tr>
+                <th class="px-4 py-4 text-left">Tanggal</th>
+                <th class="px-4 py-4 text-left">Keterangan</th>
+                <th class="px-4 py-4 text-right">Harga</th>
+                <th class="px-4 py-4 text-right text-green-600">Uang Masuk</th>
+                <th class="px-4 py-4 text-right text-red-600">Uang Keluar</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody" class="divide-y"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const transactions = [
+      {tgl: "2026/04/17", ket: "KABEL FO", harga: "995.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/17", ket: "2 GULUNG KABEL LAN", harga: "1.800.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/17", ket: "RJ 45", harga: "150.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/17", ket: "KABLE TIS", harga: "20.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/17", ket: "KLIP TEMBOK", harga: "50.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/17", ket: "KOPI 4", harga: "92.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/17", ket: "MAKAN", harga: "300.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/17", ket: "TOP UP KARTU", harga: "50.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/18", ket: "BENSIN MOBIL", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/18", ket: "MAKAN", harga: "300.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/18", ket: "BATREAI DI KARGO", harga: "185.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/19", ket: "ALT PEMBERSIH SERVER", harga: "130.000", masuk: "1.234.000", keluar: "730.000"},
+      {tgl: "2026/04/19", ket: "BENSIN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/19", ket: "UANG MAKAN", harga: "300.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/19", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/20", ket: "SOCKET SERVER FO METER", harga: "300.000", masuk: "1.000.000", keluar: "885.000"},
+      {tgl: "2026/04/20", ket: "KEPALA SKUN BATERAI", harga: "25.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/20", ket: "LEM BAKAR DAN SOLDER", harga: "60.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/20", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/20", ket: "MAKAN", harga: "300.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/20", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/21", ket: "MAKAN", harga: "300.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/21", ket: "BENSIN", harga: "150.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/21", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/22", ket: "MAKAN", harga: "300.000", masuk: "500.000", keluar: "560.000"},
+      {tgl: "2026/04/22", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/22", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/22", ket: "SKRUP CCTV", harga: "10.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/22", ket: "STEAM MOBIL", harga: "50.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/23", ket: "MAKAN", harga: "300.000", masuk: "500.000", keluar: "500.000"},
+      {tgl: "2026/04/23", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/23", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/24", ket: "MAKAN", harga: "300.000", masuk: "600.000", keluar: "600.000"},
+      {tgl: "2026/04/24", ket: "BENSIN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/24", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/25", ket: "MAKAN", harga: "300.000", masuk: "800.000", keluar: "680.000"},
+      {tgl: "2026/04/25", ket: "BENSIN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/25", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/25", ket: "BATRAI KARGO", harga: "80.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/26", ket: "MAKAN", harga: "300.000", masuk: "600.000", keluar: "600.000"},
+      {tgl: "2026/04/26", ket: "BENSIN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/26", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/27", ket: "MAKAN", harga: "300.000", masuk: "500.000", keluar: "600.000"},
+      {tgl: "2026/04/27", ket: "BENSIN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/27", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/28", ket: "MAKAN", harga: "300.000", masuk: "500.000", keluar: "500.000"},
+      {tgl: "2026/04/28", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/28", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/29", ket: "MAKAN", harga: "300.000", masuk: "600.000", keluar: "500.000"},
+      {tgl: "2026/04/29", ket: "BENSIN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/30", ket: "MAKAN", harga: "300.000", masuk: "500.000", keluar: "500.000"},
+      {tgl: "2026/04/30", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/04/30", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/01", ket: "MAKAN", harga: "300.000", masuk: "500.000", keluar: "500.000"},
+      {tgl: "2026/05/01", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/01", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/02", ket: "MAKAN", harga: "300.000", masuk: "500.000", keluar: "600.000"},
+      {tgl: "2026/05/02", ket: "BENSIN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/02", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/03", ket: "MAKAN", harga: "300.000", masuk: "1.000.000", keluar: "1.000.000"},
+      {tgl: "2026/05/03", ket: "BENSIN", harga: "600.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/03", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/04", ket: "MAKAN", harga: "300.000", masuk: "600.000", keluar: "400.000"},
+      {tgl: "2026/05/04", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/05", ket: "MAKAN", harga: "300.000", masuk: "600.000", keluar: "750.000"},
+      {tgl: "2026/05/05", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/05", ket: "PENGINAPAN", harga: "350.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/06", ket: "MAKAN", harga: "300.000", masuk: "700.000", keluar: "750.000"},
+      {tgl: "2026/05/06", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/06", ket: "PENGINAPAN", harga: "350.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/07", ket: "MAKAN", harga: "300.000", masuk: "1.000.000", keluar: "1.000.000"},
+      {tgl: "2026/05/07", ket: "BENSIN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/07", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/08", ket: "MAKAN", harga: "300.000", masuk: "1.000.000", keluar: "1.000.000"},
+      {tgl: "2026/05/08", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/08", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/09", ket: "MAKAN", harga: "300.000", masuk: "1.050.000", keluar: "1.000.000"},
+      {tgl: "2026/05/09", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/09", ket: "BENSIN PULANG KE PALU", harga: "600.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/10", ket: "MAKAN", harga: "300.000", masuk: "600.000", keluar: "500.000"},
+      {tgl: "2026/05/10", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/11", ket: "MAKAN", harga: "300.000", masuk: "250.000", keluar: "500.000"},
+      {tgl: "2026/05/11", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/12", ket: "MAKAN", harga: "300.000", masuk: "400.000", keluar: "400.000"},
+      {tgl: "2026/05/12", ket: "PENGINAPAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/13", ket: "PENGINAPAN", harga: "100.000", masuk: "100.000", keluar: "100.000"},
+      {tgl: "2026/05/14", ket: "BENSIN", harga: "700.000", masuk: "1.250.000", keluar: "1.250.000"},
+      {tgl: "2026/05/14", ket: "MAKAN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/14", ket: "PENGINAPAN", harga: "450.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/15", ket: "MAKAN", harga: "300.000", masuk: "850.000", keluar: "750.000"},
+      {tgl: "2026/05/15", ket: "PENGINAPAN", harga: "450.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/16", ket: "MAKAN", harga: "300.000", masuk: "650.000", keluar: "750.000"},
+      {tgl: "2026/05/16", ket: "PENGINAPAN", harga: "450.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/17", ket: "MAKAN", harga: "300.000", masuk: "1.396.000", keluar: "1.226.000"},
+      {tgl: "2026/05/17", ket: "PENGINAPAN", harga: "400.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/17", ket: "TIKET KAPAL", harga: "376.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/17", ket: "JASA BURUH KAPAL", harga: "130.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/17", ket: "STELA MOBIL", harga: "20.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/18", ket: "MAKAN", harga: "300.000", masuk: "570.000", keluar: "370.000"},
+      {tgl: "2026/05/18", ket: "JASA BECAK ORANG", harga: "20.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/18", ket: "JASA BECAK BARANG", harga: "30.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/18", ket: "BENSIN MOTOR", harga: "20.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/19", ket: "MAKAN", harga: "300.000", masuk: "500.000", keluar: "700.000"},
+      {tgl: "2026/05/19", ket: "PENGINAPAN", harga: "400.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/20", ket: "MAKAN", harga: "300.000", masuk: "1.400.000", keluar: "1.465.000"},
+      {tgl: "2026/05/20", ket: "OPERASIONAL KAPAL", harga: "450.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/20", ket: "BENSIN 1", harga: "380.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/21", ket: "BENSIN 2", harga: "335.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/21", ket: "MAKAN", harga: "300.000", masuk: "800.000", keluar: "800.000"},
+      {tgl: "2026/05/21", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/22", ket: "MAKAN", harga: "300.000", masuk: "1.000.000", keluar: "800.000"},
+      {tgl: "2026/05/22", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/23", ket: "MAKAN", harga: "300.000", masuk: "800.000", keluar: "800.000"},
+      {tgl: "2026/05/23", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/24", ket: "MAKAN", harga: "300.000", masuk: "800.000", keluar: "1.500.000"},
+      {tgl: "2026/05/24", ket: "BENSIN PULANG 1", harga: "300.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/25", ket: "BENSIN PULANG 2", harga: "350.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/25", ket: "BENSIN PULANG 3", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/25", ket: "MAKAN", harga: "300.000", masuk: "300.000", keluar: "300.000"},
+      {tgl: "2026/05/26", ket: "PENGINAPAN", harga: "100.000", masuk: "250.000", keluar: "100.000"},
+      {tgl: "2026/05/26", ket: "BENSIN", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/26", ket: "STEAM", harga: "50.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/28", ket: "PENGINAPAN", harga: "100.000", masuk: "700.000", keluar: "100.000"},
+      {tgl: "2026/05/28", ket: "MAKAN", harga: "300.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/28", ket: "BENSIN OTW 1", harga: "320.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/29", ket: "BENSIN OTW 2", harga: "200.000", masuk: "1.200.000", keluar: "1.000.000"},
+      {tgl: "2026/05/29", ket: "MAKAN", harga: "300.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/29", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/30", ket: "MAKAN", harga: "300.000", masuk: "800.000", keluar: "800.000"},
+      {tgl: "2026/05/30", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/31", ket: "MAKAN", harga: "300.000", masuk: "1.388.000", keluar: "1.338.000"},
+      {tgl: "2026/05/31", ket: "BENSIN OTW BANGKEP", harga: "350.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/31", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/05/31", ket: "OPRASONAL KAPAL", harga: "188.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/01", ket: "MAKAN", harga: "150.000", masuk: "650.000", keluar: "650.000"},
+      {tgl: "2026/06/01", ket: "PENGINAPAN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/01", ket: "BENSIN", harga: "300.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/02", ket: "MAKAN", harga: "300.000", masuk: "1.000.000", keluar: "1.000.000"},
+      {tgl: "2026/06/02", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/02", ket: "BENSIN", harga: "200.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/03", ket: "MAKAN", harga: "300.000", masuk: "1.450.000", keluar: "1.300.000"},
+      {tgl: "2026/06/03", ket: "PENGINAPAN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/03", ket: "BENSIN OTW 1 MORUT", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/04", ket: "MAKAN", harga: "300.000", masuk: "300.000", keluar: "400.000"},
+      {tgl: "2026/06/04", ket: "KUNCI L UNTUK PTZ", harga: "50.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/04", ket: "BENSIN DI PERTAMINI", harga: "50.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/05", ket: "MAKAN", harga: "150.000", masuk: "550.000", keluar: "650.000"},
+      {tgl: "2026/06/05", ket: "BENSIN PULANG POSO", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/06", ket: "MAKAN", harga: "300.000", masuk: "800.000", keluar: "800.000"},
+      {tgl: "2026/06/06", ket: "PENGINAPAN", harga: "150.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/06", ket: "BENSIN", harga: "500.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/07", ket: "MAKAN", harga: "150.000", masuk: "400.000", keluar: "400.000"},
+      {tgl: "2026/06/07", ket: "PENGINAPAN", harga: "150.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/07", ket: "CUCI MOBIL", harga: "100.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/08", ket: "MAKAN", harga: "150.000", masuk: "200.000", keluar: "150.000"},
+      {tgl: "2026/06/09", ket: "MAKAN", harga: "150.000", masuk: "2.080.000", keluar: "1.305.000"},
+      {tgl: "2026/06/09", ket: "BENSIN OTW TOLI 1", harga: "400.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/09", ket: "BENSIN OTW TOLI 2", harga: "385.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/09", ket: "MCB 2", harga: "120.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/09", ket: "CASHBON TEAM", harga: "250.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/10", ket: "MAKAN", harga: "150.000", masuk: "150.000", keluar: "925.000"},
+      {tgl: "2026/06/10", ket: "BENSIN PULANG 1", harga: "400.000", masuk: "", keluar: ""},
+      {tgl: "2026/06/10", ket: "BENSIN PULANG 2", harga: "375.000", masuk: "", keluar: ""}
+    ];
+
+    function login() {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value.trim();
+      if (username === "admin" && password === "harwat2026") {
+        document.getElementById('authModal').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        renderTable(transactions);
+        initCharts();
+      } else {
+        alert("Username atau Password salah!\nDemo: admin / harwat2026");
+      }
+    }
+
+    function logout() {
+      document.getElementById('dashboard').classList.add('hidden');
+      document.getElementById('authModal').classList.remove('hidden');
+    }
+
+    function renderTable(data) {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      data.forEach(item => {
+        const row = document.createElement('tr');
+        row.className = "hover:bg-gray-50";
+        row.innerHTML = `
+          <td class="px-4 py-3">${item.tgl}</td>
+          <td class="px-4 py-3">${item.ket}</td>
+          <td class="px-4 py-3 text-right font-medium">${item.harga}</td>
+          <td class="px-4 py-3 text-right text-green-600">${item.masuk || '-'}</td>
+          <td class="px-4 py-3 text-right text-red-600">${item.keluar || '-'}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function applyFilters() {
+      const month = document.getElementById('monthFilter').value;
+      const search = document.getElementById('searchInput').value.toLowerCase().trim();
+      const filtered = transactions.filter(item => {
+        const matchMonth = !month || item.tgl.includes(`/${month}/`);
+        const matchSearch = !search || 
+          item.tgl.toLowerCase().includes(search) || 
+          item.ket.toLowerCase().includes(search);
+        return matchMonth && matchSearch;
+      });
+      renderTable(filtered);
+    }
+
+    function initCharts() {
+      new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: { labels: ['April', 'Mei', 'Juni'], datasets: [{ label: 'Pengeluaran', data: [2450000, 18500000, 7500000], backgroundColor: '#ef4444' }] },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      new Chart(document.getElementById('categoryChart'), {
+        type: 'pie',
+        data: {
+          labels: ['Makan', 'Bensin', 'Penginapan', 'Teknis', 'Kapal', 'Lain-lain'],
+          datasets: [{ data: [12450000, 9850000, 8950000, 3200000, 1800000, 1000000], backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#6b7280'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+
+    document.getElementById('monthFilter').addEventListener('change', applyFilters);
+    document.getElementById('searchInput').addEventListener('keyup', applyFilters);
+
+    window.onload = () => document.getElementById('loginPassword').focus();
+  </script>
+</body>
+</html>
