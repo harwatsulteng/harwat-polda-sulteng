@@ -6,6 +6,9 @@
   <title>Harwat Polda Sulteng - Pengeluaran 2026</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF for PDF export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <style>
     body { font-family: 'Segoe UI', sans-serif; }
@@ -25,11 +28,30 @@
       </div>
       <h2 class="text-2xl font-bold text-center mb-2">Login Harwat</h2>
       <p class="text-center text-gray-500 mb-6">Polda Sulawesi Tengah</p>
+      <input type="text" id="loginUsername" placeholder="Username" class="w-full border border-gray-300 rounded-lg px-4 py-3 mb-4">
+      <input type="password" id="loginPassword" placeholder="Password" class="w-full border border-gray-300 rounded-lg px-4 py-3 mb-4">
+      <div class="flex gap-3 mb-4">
+        <button id="loginBtn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold">LOGIN</button>
+        <button id="openRegister" class="flex-1 bg-gray-200 hover:bg-gray-300 py-3 rounded-lg">REGISTER</button>
+      </div>
+      <p class="text-center text-xs text-gray-500 mt-4">Demo admin: admin / harwat2026</p>
+    </div>
+  </div>
 
-      <input type="text" id="loginUsername" value="admin" class="w-full border border-gray-300 rounded-lg px-4 py-3 mb-4">
-      <input type="password" id="loginPassword" value="harwat2026" class="w-full border border-gray-300 rounded-lg px-4 py-3 mb-6">
-      <button onclick="login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold">LOGIN</button>
-      <p class="text-center text-xs text-gray-500 mt-4">Demo: admin / harwat2026</p>
+  <!-- Register Modal -->
+  <div id="registerModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+      <h3 class="text-xl font-semibold mb-4">Register User</h3>
+      <input id="regUsername" placeholder="Username" class="w-full border rounded-lg px-3 py-2 mb-3">
+      <input id="regPassword" type="password" placeholder="Password" class="w-full border rounded-lg px-3 py-2 mb-3">
+      <select id="regRole" class="w-full border rounded-lg px-3 py-2 mb-4">
+        <option value="viewer">Viewer (hanya melihat)</option>
+        <option value="admin">Admin (bisa CRUD)</option>
+      </select>
+      <div class="flex justify-end gap-3">
+        <button id="cancelReg" class="px-4 py-2 rounded-lg bg-gray-200">Batal</button>
+        <button id="saveReg" class="px-4 py-2 rounded-lg bg-green-600 text-white">Daftar</button>
+      </div>
     </div>
   </div>
 
@@ -44,7 +66,10 @@
             <p class="text-lg">Pengeluaran Operasional Harwat 2026 - Data Lengkap</p>
           </div>
         </div>
-        <button onclick="logout()" class="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm">Logout</button>
+        <div class="flex items-center gap-4">
+          <div id="currentUserDisplay" class="text-sm text-gray-100"></div>
+          <button id="logoutBtn" onclick="logout()" class="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm">Logout</button>
+        </div>
       </div>
     </header>
 
@@ -90,6 +115,12 @@
           </select>
           <input type="text" id="searchInput" placeholder="🔍 Cari keterangan atau tanggal..." 
                  class="border rounded-lg px-4 py-2 flex-1 min-w-[200px]">
+          <button id="addBtn" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg">Tambah</button>
+          <button id="exportBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg">Export JSON</button>
+          <label class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg cursor-pointer">
+            Import
+            <input id="importInput" type="file" accept="application/json" class="hidden">
+          </label>
         </div>
 
         <div class="table-container">
@@ -101,11 +132,30 @@
                 <th class="px-4 py-4 text-right">Harga</th>
                 <th class="px-4 py-4 text-right text-green-600">Uang Masuk</th>
                 <th class="px-4 py-4 text-right text-red-600">Uang Keluar</th>
+                <th class="px-4 py-4 text-center">Aksi</th>
               </tr>
             </thead>
             <tbody id="tableBody" class="divide-y"></tbody>
           </table>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Add/Edit -->
+  <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6">
+      <h3 id="modalTitle" class="text-xl font-semibold mb-4">Tambah Transaksi</h3>
+      <div class="grid grid-cols-1 gap-3">
+        <input type="date" id="fieldDate" class="border rounded-lg px-3 py-2">
+        <input type="text" id="fieldKet" placeholder="Keterangan" class="border rounded-lg px-3 py-2">
+        <input type="text" id="fieldHarga" placeholder="Harga (angka)" class="border rounded-lg px-3 py-2">
+        <input type="text" id="fieldMasuk" placeholder="Uang Masuk (opsional)" class="border rounded-lg px-3 py-2">
+        <input type="text" id="fieldKeluar" placeholder="Uang Keluar (opsional)" class="border rounded-lg px-3 py-2">
+      </div>
+      <div class="mt-4 flex justify-end gap-3">
+        <button id="cancelEdit" class="px-4 py-2 rounded-lg bg-gray-200">Batal</button>
+        <button id="saveEdit" class="px-4 py-2 rounded-lg bg-green-600 text-white">Simpan</button>
       </div>
     </div>
   </div>
@@ -280,36 +330,77 @@
     function login() {
       const username = document.getElementById('loginUsername').value.trim();
       const password = document.getElementById('loginPassword').value.trim();
-      if (username === "admin" && password === "harwat2026") {
+      const users = loadUsers();
+      const found = users.find(u => u.username === username && u.password === password);
+      if (found) {
+        currentUser = found;
+        localStorage.setItem('current_user', JSON.stringify(currentUser));
         document.getElementById('authModal').classList.add('hidden');
         document.getElementById('dashboard').classList.remove('hidden');
+        loadTransactions();
+        applyRoleRestrictions();
         renderTable(transactions);
         initCharts();
+        updateCurrentUserDisplay();
       } else {
-        alert("Username atau Password salah!\nDemo: admin / harwat2026");
+        alert('Username atau Password salah!');
       }
     }
 
     function logout() {
+      currentUser = null;
+      localStorage.removeItem('current_user');
       document.getElementById('dashboard').classList.add('hidden');
       document.getElementById('authModal').classList.remove('hidden');
+      updateCurrentUserDisplay();
+    }
+
+    function updateCurrentUserDisplay() {
+      const el = document.getElementById('currentUserDisplay');
+      if (currentUser) el.textContent = `Login sebagai: ${currentUser.username} (${currentUser.role})`;
+      else el.textContent = '';
     }
 
     function renderTable(data) {
       const tbody = document.getElementById('tableBody');
       tbody.innerHTML = '';
-      data.forEach(item => {
+      const isAdmin = currentUser && currentUser.role === 'admin';
+      data.forEach((item, idx) => {
         const row = document.createElement('tr');
         row.className = "hover:bg-gray-50";
+        let actionCell = '';
+        if (isAdmin) {
+          actionCell = `
+            <td class="px-4 py-3 text-center">
+              <button data-idx="${idx}" class="editBtn bg-yellow-400 hover:bg-yellow-500 px-3 py-1 rounded-lg mr-2">Edit</button>
+              <button data-idx="${idx}" class="delBtn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg">Hapus</button>
+            </td>`;
+        } else {
+          actionCell = `<td class="px-4 py-3 text-center text-gray-400">-</td>`;
+        }
+
         row.innerHTML = `
           <td class="px-4 py-3">${item.tgl}</td>
           <td class="px-4 py-3">${item.ket}</td>
-          <td class="px-4 py-3 text-right font-medium">${item.harga}</td>
+          <td class="px-4 py-3 text-right font-medium">${formatNumber(item.harga)}</td>
           <td class="px-4 py-3 text-right text-green-600">${item.masuk || '-'}</td>
           <td class="px-4 py-3 text-right text-red-600">${item.keluar || '-'}</td>
+          ${actionCell}
         `;
         tbody.appendChild(row);
       });
+
+      // attach handlers only when admin
+      if (isAdmin) {
+        document.querySelectorAll('.editBtn').forEach(b => b.addEventListener('click', e => openEditModal(+e.target.dataset.idx)));
+        document.querySelectorAll('.delBtn').forEach(b => b.addEventListener('click', e => deleteTransaction(+e.target.dataset.idx)));
+      }
+    }
+
+    function formatNumber(v) {
+      if (!v) return '-';
+      const n = String(v).replace(/\D/g, '');
+      return n.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
     }
 
     function applyFilters() {
@@ -323,6 +414,241 @@
         return matchMonth && matchSearch;
       });
       renderTable(filtered);
+    }
+
+    // ----------------- User management -----------------
+    const USERS_KEY = 'harwat_users';
+    let currentUser = null;
+
+    function loadUsers() {
+      const raw = localStorage.getItem(USERS_KEY);
+      if (!raw) {
+        const seed = [{ username: 'admin', password: 'harwat2026', role: 'admin' }];
+        localStorage.setItem(USERS_KEY, JSON.stringify(seed));
+        return seed;
+      }
+      try { return JSON.parse(raw) } catch(e) { return []; }
+    }
+
+    function saveUsers(users) { localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
+
+    // register modal handlers
+    document.getElementById('openRegister').addEventListener('click', () => document.getElementById('registerModal').classList.remove('hidden'));
+    document.getElementById('cancelReg').addEventListener('click', () => document.getElementById('registerModal').classList.add('hidden'));
+    document.getElementById('saveReg').addEventListener('click', () => {
+      const u = document.getElementById('regUsername').value.trim();
+      const p = document.getElementById('regPassword').value.trim();
+      const r = document.getElementById('regRole').value;
+      if (!u || !p) { alert('Username dan Password wajib diisi'); return; }
+      const users = loadUsers();
+      if (users.find(x => x.username === u)) { alert('Username sudah ada'); return; }
+      users.push({ username: u, password: p, role: r });
+      saveUsers(users);
+      alert('Pendaftaran berhasil. Silakan login.');
+      document.getElementById('registerModal').classList.add('hidden');
+    });
+
+    function applyRoleRestrictions() {
+      // jika viewer, sembunyikan tombol add/edit/delete/import/export
+      const isAdmin = currentUser && currentUser.role === 'admin';
+      document.getElementById('addBtn').style.display = isAdmin ? 'inline-block' : 'none';
+      document.getElementById('exportBtn').style.display = isAdmin ? 'inline-block' : 'none';
+      document.getElementById('importInput').parentElement.style.display = isAdmin ? 'inline-block' : 'none';
+      // after renderTable is called, edit/hapus buttons will hide automatically because they won't be attached
+    }
+
+    // attach basic login button handler
+    document.getElementById('loginBtn').addEventListener('click', login);
+
+    // Auto-login if session exists
+    (function tryAutoLogin(){
+      try {
+        const raw = localStorage.getItem('current_user');
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (!parsed) return;
+        // ensure user still exists in users list
+        const users = loadUsers();
+        const found = users.find(u => u.username === parsed.username && u.password === parsed.password);
+        if (found) {
+          currentUser = found;
+          document.getElementById('authModal').classList.add('hidden');
+          document.getElementById('dashboard').classList.remove('hidden');
+          loadTransactions();
+          applyRoleRestrictions();
+          renderTable(transactions);
+          initCharts();
+          updateCurrentUserDisplay();
+        }
+      } catch(e) { /* ignore */ }
+    })();
+
+    // ----------------- CRUD + persistence -----------------
+    const STORAGE_KEY = 'harwat_transactions';
+
+    function loadTransactions() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) { transactions.length = 0; parsed.forEach(t => transactions.push(t)); } } catch(e) { console.error('Invalid stored data', e); }
+      } else {
+        saveTransactions(); // initialize
+      }
+    }
+
+    function saveTransactions() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+      refreshAfterChange();
+    }
+
+    function refreshAfterChange() {
+      applyFilters();
+      updateChartsData();
+    }
+
+    function addTransaction(obj) {
+      transactions.unshift(obj);
+      saveTransactions();
+    }
+
+    function updateTransaction(idx, obj) {
+      transactions[idx] = obj;
+      saveTransactions();
+    }
+
+    function deleteTransaction(idx) {
+      if (!currentUser || currentUser.role !== 'admin') { alert('Akses ditolak: hanya admin yang dapat menghapus.'); return; }
+      if (!confirm('Yakin ingin menghapus transaksi ini?')) return;
+      transactions.splice(idx, 1);
+      saveTransactions();
+    }
+
+    // ----------------- Modal Add/Edit -----------------
+    let editingIndex = -1;
+    const editModal = document.getElementById('editModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const fieldDate = document.getElementById('fieldDate');
+    const fieldKet = document.getElementById('fieldKet');
+    const fieldHarga = document.getElementById('fieldHarga');
+    const fieldMasuk = document.getElementById('fieldMasuk');
+    const fieldKeluar = document.getElementById('fieldKeluar');
+    document.getElementById('addBtn').addEventListener('click', () => openEditModal(-1));
+    document.getElementById('cancelEdit').addEventListener('click', closeEditModal);
+    document.getElementById('saveEdit').addEventListener('click', saveFromModal);
+
+    function openEditModal(idx) {
+      if (!currentUser || currentUser.role !== 'admin') { alert('Akses ditolak: hanya admin yang dapat menambah/mengedit.'); return; }
+      editingIndex = idx;
+      if (idx >= 0) {
+        modalTitle.textContent = 'Edit Transaksi';
+        const t = transactions[idx];
+        // convert yyyy/mm/dd to yyyy-mm-dd
+        fieldDate.value = (t.tgl || '').replace(/\//g, '-');
+        fieldKet.value = t.ket || '';
+        fieldHarga.value = String(t.harga || '').replace(/\./g, '');
+        fieldMasuk.value = t.masuk || '';
+        fieldKeluar.value = t.keluar || '';
+      } else {
+        modalTitle.textContent = 'Tambah Transaksi';
+        const today = new Date().toISOString().slice(0,10);
+        fieldDate.value = today;
+        fieldKet.value = '';
+        fieldHarga.value = '';
+        fieldMasuk.value = '';
+        fieldKeluar.value = '';
+      }
+      editModal.classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      editModal.classList.add('hidden');
+    }
+
+    function saveFromModal() {
+      if (!currentUser || currentUser.role !== 'admin') { alert('Akses ditolak: hanya admin yang dapat menambah/mengedit.'); return; }
+      const dateVal = fieldDate.value;
+      const ketVal = fieldKet.value.trim();
+      const hargaVal = String(fieldHarga.value).replace(/\D/g, '');
+      const masukVal = fieldMasuk.value.trim();
+      const keluarVal = fieldKeluar.value.trim();
+      if (!dateVal || !ketVal || !hargaVal) { alert('Tanggal, Keterangan, dan Harga wajib diisi'); return; }
+      const obj = { tgl: dateVal.replace(/-/g, '/'), ket: ketVal, harga: hargaVal, masuk: masukVal, keluar: keluarVal };
+      if (editingIndex >= 0) updateTransaction(editingIndex, obj); else addTransaction(obj);
+      closeEditModal();
+    }
+
+    // ----------------- Import / Export -----------------
+    document.getElementById('exportBtn').addEventListener('click', () => {
+      if (!currentUser || currentUser.role !== 'admin') { alert('Akses ditolak: hanya admin yang dapat mengekspor data.'); return; }
+      // Export current filtered table view to PDF
+      const month = document.getElementById('monthFilter').value;
+      const search = document.getElementById('searchInput').value.toLowerCase().trim();
+      const filtered = transactions.filter(item => {
+        const matchMonth = !month || item.tgl.includes(`/${month}/`);
+        const matchSearch = !search || item.tgl.toLowerCase().includes(search) || item.ket.toLowerCase().includes(search);
+        return matchMonth && matchSearch;
+      });
+      const rows = filtered.map(t => [t.tgl, t.ket, t.harga, t.masuk||'-', t.keluar||'-']);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('landscape');
+      doc.setFontSize(14);
+      doc.text('Harwat - Transaksi', 14, 16);
+      doc.autoTable({
+        startY: 22,
+        head: [['Tanggal','Keterangan','Harga','Masuk','Keluar']],
+        body: rows,
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [59,130,246] }
+      });
+      doc.save('harwat_transactions.pdf');
+    });
+
+    document.getElementById('importInput').addEventListener('change', e => {
+      if (!currentUser || currentUser.role !== 'admin') { alert('Akses ditolak: hanya admin yang dapat mengimpor data.'); e.target.value = ''; return; }
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          if (!Array.isArray(parsed)) throw new Error('File bukan array');
+          if (!confirm('Import akan menggantikan data saat ini. Lanjutkan?')) return;
+          transactions.length = 0; parsed.forEach(t => transactions.push(t)); saveTransactions();
+          alert('Import berhasil');
+        } catch(err) { alert('Import gagal: ' + err.message); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+
+    // ----------------- Charts update stub -----------------
+    let monthlyChartInstance = null;
+    let categoryChartInstance = null;
+
+    function initCharts() {
+      monthlyChartInstance = new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: { labels: ['April', 'Mei', 'Juni'], datasets: [{ label: 'Pengeluaran', data: [2450000, 18500000, 7500000], backgroundColor: '#ef4444' }] },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
+        type: 'pie',
+        data: {
+          labels: ['Makan', 'Bensin', 'Penginapan', 'Teknis', 'Kapal', 'Lain-lain'],
+          datasets: [{ data: [12450000, 9850000, 8950000, 3200000, 1800000, 1000000], backgroundColor: ['#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6', '#10b981', '#6b7280'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+
+    function updateChartsData() {
+      // For demo keep charts static or implement simple aggregation
+      if (!monthlyChartInstance || !categoryChartInstance) return;
+      // As example, recompute monthly totals for keluar
+      const months = { '04':0, '05':0, '06':0 };
+      transactions.forEach(t => { const m = (t.tgl || '').split('/')[1]; const val = Number(String(t.keluar||t.harga).replace(/\D/g,'')) || 0; if (months[m] !== undefined) months[m]+=val; });
+      monthlyChartInstance.data.datasets[0].data = [months['04'], months['05'], months['06']];
+      monthlyChartInstance.update();
+      // category chart left static
     }
 
     function initCharts() {
